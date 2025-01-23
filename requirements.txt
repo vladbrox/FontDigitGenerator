@@ -1,5 +1,5 @@
-PyQt5,
-PyQtWebEngine,
-Flask,
-Pillow,
+PyQt5
+PyQtWebEngine
+Flask
+Pillow
 pyinstaller
