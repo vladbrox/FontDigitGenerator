@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digit Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #0a0a0a;
+            color: #f3f4f6;
+        }
+        
+        .dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+        
+        .dropzone.active {
+            border-color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.1);
+        }
+        
+        canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        #preview-container {
+            background-color: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            display: none;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        input[type="text"] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: white;
+            font-size: 14px;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 100%;
+            height: 44px;
+            border-radius: 8px;
+            cursor: pointer;
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        input[type="color"]::-webkit-color-swatch {
+            border-radius: 6px;
+            border: none;
+        }
+        
+        .btn-primary {
+            background-color: #3b82f6;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        
+        .btn-primary:active {
+            background-color: #1d4ed8;
+        }
+        
+        .digit-control {
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .digit-control:hover {
+            background-color: rgba(255, 255, 255, 0.15);
+        }
+        
+        .digit-control:active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .current-digit {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fadeIn {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <header class="py-10">
+        <div class="container mx-auto px-6">
+            <h1 class="text-4xl font-bold text-center tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-blue-600">
+                Digit Generator
+            </h1>
+            <p class="text-center text-gray-400 mt-3 tracking-wide">Create perfectly centered digit images at any size</p>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-6 pb-12">
+        <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <!-- Settings Panel -->
+            <div class="bg-gray-900 rounded-xl p-8 border border-gray-800 shadow-lg">
+                <h2 class="text-2xl font-semibold mb-6 tracking-tight flex items-center">
+                    <i class="fas fa-cog mr-2 text-blue-400"></i>
+                    Settings
+                </h2>
+                
+                <!-- Font Upload -->
+                <div class="mb-8 animate-fadeIn">
+                    <label class="block text-sm font-medium mb-3 text-gray-300 tracking-tight">Upload Font</label>
+                    <div 
+                        id="dropzone" 
+                        class="dropzone rounded-xl p-8 text-center cursor-pointer hover:bg-opacity-10 transition-all duration-200"
+                    >
+                        <div id="dropzone-content">
+                            <i class="fas fa-file-upload text-4xl text-gray-500 mb-3"></i>
+                            <p class="text-sm text-gray-400 tracking-tight">Drag & drop font file or click to browse</p>
+                            <p class="text-xs text-gray-500 mt-1 tracking-tight">Supports .ttf, .otf, .woff</p>
+                        </div>
+                        <div id="font-name" class="hidden mt-2 text-blue-400 text-sm font-medium tracking-tight"></div>
+                        <input type="file" id="font-upload" class="hidden" accept=".ttf,.otf,.woff,.woff2" />
+                    </div>
+                </div>
+                
+                <!-- Color Picker -->
+                <div class="grid grid-cols-2 gap-6 mb-8 animate-fadeIn">
+                    <div>
+                        <label for="text-color" class="block text-sm font-medium mb-3 text-gray-300 tracking-tight">Text Color</label>
+                        <input type="color" id="text-color" value="#ffffff">
+                    </div>
+                    <div>
+                        <label for="bg-color" class="block text-sm font-medium mb-3 text-gray-300 tracking-tight">Background Color</label>
+                        <input type="color" id="bg-color" value="#000000">
+                    </div>
+                </div>
+                
+                <!-- Size Input -->
+                <div class="mb-8 animate-fadeIn">
+                    <label for="image-size" class="block text-sm font-medium mb-3 text-gray-300 tracking-tight">Image Size (pixels)</label>
+                    <div class="relative">
+                        <input
+                            type="text"
+                            id="image-size"
+                            value="512"
+                            pattern="\d*"
+                            class="w-full"
+                        >
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Enter size in pixels (e.g. 512, 1024)</p>
+                </div>
+                
+                <!-- Generate Button -->
+                <button 
+                    id="generate-btn" 
+                    class="w-full py-3.5 px-5 btn-primary text-white font-medium rounded-xl flex items-center justify-center tracking-tight mt-2 animate-fadeIn"
+                    disabled
+                >
+                    <i class="fas fa-magic mr-2"></i>
+                    Generate All Digits
+                </button>
+                
+                <p id="error-message" class="text-red-400 text-xs mt-3 hidden animate-fadeIn"></p>
+            </div>
+            
+            <!-- Preview Panel -->
+            <div class="bg-gray-900 rounded-xl p-8 border border-gray-800 shadow-lg">
+                <h2 class="text-2xl font-semibold mb-6 tracking-tight flex items-center">
+                    <i class="fas fa-eye mr-2 text-blue-400"></i>
+                    Preview
+                </h2>
+                <div class="h-80 flex items-center justify-center relative" id="preview-container">
+                    <canvas id="preview-canvas" width="512" height="512"></canvas>
+                </div>
+                <div id="preview-placeholder" class="h-80 flex items-center justify-center bg-gray-900/50 rounded-xl">
+                    <div class="text-center">
+                        <i class="fas fa-font text-4xl text-gray-600 mb-3"></i>
+                        <p class="text-gray-500">Upload a font to see preview</p>
+                    </div>
+                </div>
+                
+                <!-- Digit Navigation -->
+                <div class="flex justify-center mt-8 space-x-4 animate-fadeIn">
+                    <button 
+                        id="prev-digit" 
+                        class="p-3.5 digit-control rounded-xl"
+                        disabled
+                    >
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <div class="flex items-center justify-center w-14 h-14 current-digit rounded-xl font-medium text-xl tracking-tight" id="current-digit">
+                        0
+                    </div>
+                    <button 
+                        id="next-digit" 
+                        class="p-3.5 digit-control rounded-xl"
+                        disabled
+                    >
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                <p class="text-center text-xs text-gray-500 mt-3 tracking-tight">Navigate through digits 0-9</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="py-6 mt-16 text-center text-xs text-gray-600 tracking-tight border-t border-gray-800">
+        <div class="container mx-auto px-4">
+            <p>Digit Generator  •  Create perfectly centered digit assets for machine learning</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elements
+            const dropzone = document.getElementById('dropzone');
+            const dropzoneContent = document.getElementById('dropzone-content');
+            const fontUpload = document.getElementById('font-upload');
+            const fontName = document.getElementById('font-name');
+            const generateBtn = document.getElementById('generate-btn');
+            const errorMessage = document.getElementById('error-message');
+            const previewCanvas = document.getElementById('preview-canvas');
+            const previewCtx = previewCanvas.getContext('2d');
+            const previewContainer = document.getElementById('preview-container');
+            const previewPlaceholder = document.getElementById('preview-placeholder');
+            const currentDigit = document.getElementById('current-digit');
+            const prevDigitBtn = document.getElementById('prev-digit');
+            const nextDigitBtn = document.getElementById('next-digit');
+            const textColorInput = document.getElementById('text-color');
+            const bgColorInput = document.getElementById('bg-color');
+            const imageSizeInput = document.getElementById('image-size');
+            
+            // Variables
+            let customFont = null;
+            let fontFamily = 'Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+            let currentPreviewDigit = 0;
+            let isFontLoaded = false;
+            
+            // Event Listeners
+            dropzone.addEventListener('click', () => fontUpload.click());
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('active');
+            });
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('active');
+            });
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('active');
+                
+                if (e.dataTransfer.files.length) {
+                    handleFontFile(e.dataTransfer.files[0]);
+                }
+            });
+            
+            fontUpload.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    handleFontFile(e.target.files[0]);
+                }
+            });
+            
+            imageSizeInput.addEventListener('input', () => {
+                // Only allow numbers
+                imageSizeInput.value = imageSizeInput.value.replace(/[^0-9]/g, '');
+                
+                // Enforce minimum and maximum
+                if (imageSizeInput.value > 8192) {
+                    imageSizeInput.value = 8192;
+                } else if (imageSizeInput.value < 16) {
+                    imageSizeInput.value = 16;
+                }
+                
+                updatePreview();
+            });
+            
+            textColorInput.addEventListener('input', updatePreview);
+            bgColorInput.addEventListener('input', updatePreview);
+            generateBtn.addEventListener('click', generateImages);
+            prevDigitBtn.addEventListener('click', () => {
+                currentPreviewDigit = (currentPreviewDigit - 1 + 10) % 10;
+                updatePreview();
+            });
+            nextDigitBtn.addEventListener('click', () => {
+                currentPreviewDigit = (currentPreviewDigit + 1) % 10;
+                updatePreview();
+            });
+            
+            // Functions
+            function handleFontFile(file) {
+                const validTypes = ['font/ttf', 'font/otf', 'font/woff', 'font/woff2', 'application/x-font-ttf', 'application/x-font-otf', 'application/x-font-woff'];
+                const fileExt = file.name.split('.').pop().toLowerCase();
+                
+                if (!validTypes.includes(file.type) && !['ttf', 'otf', 'woff', 'woff2'].includes(fileExt)) {
+                    showError('Please select a valid font file (.ttf, .otf, .woff)');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const fontData = e.target.result;
+                    
+                    try {
+                        customFont = new FontFace('customFont', fontData);
+                        customFont.load().then(() => {
+                            document.fonts.add(customFont);
+                            fontFamily = 'customFont, Inter, -apple-system, BlinkMacSystemFont, sans-serif';
+                            isFontLoaded = true;
+                            
+                            // Update UI
+                            fontName.textContent = truncateFileName(file.name, 30);
+                            fontName.classList.remove('hidden');
+                            dropzoneContent.classList.add('hidden');
+                            generateBtn.disabled = false;
+                            prevDigitBtn.disabled = false;
+                            nextDigitBtn.disabled = false;
+                            errorMessage.classList.add('hidden');
+                            
+                            // Show preview and hide placeholder
+                            previewContainer.style.display = 'flex';
+                            previewPlaceholder.style.display = 'none';
+                            
+                            updatePreview();
+                        }).catch(err => {
+                            showError('Font load error: ' + err.message);
+                        });
+                    } catch (err) {
+                        showError('Error processing font');
+                    }
+                };
+                reader.onerror = () => showError('Error reading file');
+                reader.readAsArrayBuffer(file);
+            }
+            
+            function truncateFileName(name, maxLength) {
+                if (name.length <= maxLength) return name;
+                const extensionIndex = name.lastIndexOf('.');
+                if (extensionIndex === -1) return name.substring(0, maxLength) + '...';
+                
+                const extension = name.substring(extensionIndex);
+                const baseName = name.substring(0, extensionIndex);
+                const maxBaseLength = maxLength - extension.length - 3;
+                
+                if (maxBaseLength <= 0) return '...' + extension;
+                
+                return baseName.substring(0, maxBaseLength) + '...' + extension;
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.remove('hidden');
+                setTimeout(() => {
+                    errorMessage.classList.add('hidden');
+                }, 5000);
+            }
+            
+            function updatePreview() {
+                if (!isFontLoaded) return;
+                
+                const textColor = textColorInput.value;
+                const bgColor = bgColorInput.value;
+                const size = parseInt(imageSizeInput.value) || 512;
+                
+                // Set canvas size to be square
+                const canvasSize = Math.min(
+                    previewContainer.clientWidth, 
+                    previewContainer.clientHeight
+                );
+                
+                previewCanvas.width = size;
+                previewCanvas.height = size;
+                
+                // Fill the background
+                previewCtx.fillStyle = bgColor;
+                previewCtx.fillRect(0, 0, size, size);
+                
+                // Draw the digit
+                const digit = currentPreviewDigit.toString();
+                
+                // Calculate the optimal font size
+                let minFontSize = 10;
+                let maxFontSize = size * 1.5; // Start with a large size
+                
+                // Binary search for the maximum font size that fits
+                let optimalFontSize = minFontSize;
+                for (let i = 0; i < 20; i++) { // 20 iterations should be enough
+                    const testSize = (minFontSize + maxFontSize) / 2;
+                    previewCtx.font = `bold ${testSize}px ${fontFamily}`;
+                    const metrics = previewCtx.measureText(digit);
+                    
+                    const textWidth = metrics.width;
+                    const textHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+                    
+                    // Check if the text fits within the canvas with some padding
+                    const padding = size * 0.05; // 5% padding from edges
+                    if (textWidth <= size - padding && textHeight <= size - padding) {
+                        minFontSize = testSize;
+                        optimalFontSize = testSize;
+                    } else {
+                        maxFontSize = testSize;
+                    }
+                }
+                
+                // Set the optimal font
+                previewCtx.font = `bold ${optimalFontSize}px ${fontFamily}`;
+                previewCtx.textAlign = 'center';
+                previewCtx.textBaseline = 'middle';
+                previewCtx.fillStyle = textColor;
+                
+                // Calculate the exact vertical position
+                const metrics = previewCtx.measureText(digit);
+                const verticalOffset = (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+                const centerY = size / 2 + verticalOffset;
+                
+                // Draw the digit
+                previewCtx.fillText(digit, size / 2, centerY);
+                
+                // Center the canvas in the container
+                previewCanvas.style.width = `${Math.min(size, canvasSize)}px`;
+                previewCanvas.style.height = `${Math.min(size, canvasSize)}px`;
+                
+                currentDigit.textContent = currentPreviewDigit;
+            }
+            
+            function generateImages() {
+                if (!isFontLoaded) {
+                    showError('Please upload a font first');
+                    return;
+                }
+                
+                const size = parseInt(imageSizeInput.value) || 512;
+                if (size < 16 || size > 8192) {
+                    showError('Please enter a size between 16 and 8192 pixels');
+                    return;
+                }
+                
+                generateBtn.disabled = true;
+                generateBtn.innerHTML = `
+                    <i class="fas fa-spinner animate-spin mr-2"></i>
+                    Generating...
+                `;
+                
+                setTimeout(() => {
+                    const textColor = textColorInput.value;
+                    const bgColor = bgColorInput.value;
+                    
+                    const zip = new JSZip();
+                    const imagesFolder = zip.folder('digits');
+                    
+                    // Create a temporary canvas
+                    const canvas = document.createElement('canvas');
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Generate digits 0-9
+                    for (let i = 0; i < 10; i++) {
+                        // Fill background
+                        ctx.fillStyle = bgColor;
+                        ctx.fillRect(0, 0, size, size);
+                        
+                        // Binary search for optimal font size
+                        let minFontSize = 10;
+                        let maxFontSize = size * 1.5;
+                        let optimalFontSize = minFontSize;
+                        
+                        for (let j = 0; j < 20; j++) {
+                            const testSize = (minFontSize + maxFontSize) / 2;
+                            ctx.font = `bold ${testSize}px ${fontFamily}`;
+                            const metrics = ctx.measureText(i.toString());
+                            
+                            const textWidth = metrics.width;
+                            const textHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+                            
+                            const padding = size * 0.05;
+                            if (textWidth <= size - padding && textHeight <= size - padding) {
+                                minFontSize = testSize;
+                                optimalFontSize = testSize;
+                            } else {
+                                maxFontSize = testSize;
+                            }
+                        }
+                        
+                        // Set the final font
+                        ctx.font = `bold ${optimalFontSize}px ${fontFamily}`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = textColor;
+                        
+                        // Calculate vertical position
+                        const metrics = ctx.measureText(i.toString());
+                        const verticalOffset = (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) / 2;
+                        
+                        // Draw the digit
+                        ctx.fillText(i.toString(), size / 2, size / 2 + verticalOffset);
+                        
+                        // Add to zip
+                        const dataUrl = canvas.toDataURL('image/png');
+                        const base64Data = dataUrl.replace(/^data:image\/(png);base64,/, "");
+                        imagesFolder.file(`${i}.png`, base64Data, {base64: true});
+                    }
+                    
+                    // Generate the zip file
+                    zip.generateAsync({type: 'blob'}).then(function(content) {
+                        saveAs(content, 'digits.zip');
+                        generateBtn.disabled = false;
+                        generateBtn.innerHTML = `
+                            <i class="fas fa-magic mr-2"></i>
+                            Generate All Digits
+                        `;
+                    });
+                }, 100);
+            }
+            
+            // Initial setup
+            previewContainer.style.display = 'none';
+            previewPlaceholder.style.display = 'flex';
+            
+            // Handle window resize
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    if (isFontLoaded) updatePreview();
+                }, 200);
+            });
+        });
+    </script>
+</body>
+</html>
